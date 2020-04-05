@@ -19,6 +19,7 @@ const entry = new mongoose.Schema({
   items: { type: Number, required: true },
   type: { type: String, required: true },
   location: { type: String, required: true },
+  subLocation: { type: String, required: false },
   created: { type: Number, required: true }
 });
 

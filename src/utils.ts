@@ -1,13 +1,13 @@
-import { sortBy, meanBy, minBy, maxBy, floor } from "lodash";
+import { sortBy, meanBy, minBy, maxBy, floor, deburr, snakeCase } from "lodash";
 import {
   LOOKUP_REAL_ESTATE_REGIONS,
   SITE_URL,
   IS_DEV,
   LOOKUP_REAL_ESTATE,
   PRICE_BLACKLIST,
-  CELL_BLACKLIST
+  CELL_BLACKLIST,
 } from "./constants";
-import { Scraped, Stats, Entry, Measurement, Candidate } from "./types";
+import { Scraped, Stats, Entry, Measurement, Candidate, Parse } from "./types";
 
 /**
  * Output logs if enabled
@@ -35,18 +35,25 @@ export const getSiteUrl = (path: string): string => `${SITE_URL}${path}`;
 export const getSellUrl = (locationUrl: string): string => `${getSiteUrl(locationUrl)}sell/filter/`;
 
 /**
+ * Normalize text for db
+ *
+ * @param text
+ */
+export const normalizeText = (text: string) => snakeCase(deburr(text));
+
+/**
  * Returns link lists for types and regions
  */
 export const getEntryLinks = (): Omit<Candidate, "links">[] => {
   const links: Omit<Candidate, "links">[] = [];
-  LOOKUP_REAL_ESTATE.forEach(type => {
+  LOOKUP_REAL_ESTATE.forEach((type) => {
     LOOKUP_REAL_ESTATE_REGIONS.forEach(({ url, name }) => {
       links.push({
         type,
         region: {
           url: `${type.url}${url}`,
-          name
-        }
+          name,
+        },
       });
     });
   });
@@ -59,7 +66,7 @@ export const getEntryLinks = (): Omit<Candidate, "links">[] => {
  * @param priceCandidate
  */
 export const getPrice = (priceCandidate: string) => {
-  if (priceCandidate && !PRICE_BLACKLIST.some(item => priceCandidate.includes(item))) {
+  if (priceCandidate && !PRICE_BLACKLIST.some((item) => priceCandidate.includes(item))) {
     const price = parseFloat(priceCandidate.replace(/[ ,]/g, ""));
     if (isFinite(price)) return price;
   }
@@ -72,7 +79,7 @@ export const getPrice = (priceCandidate: string) => {
  * @param m2Candidate
  */
 export const getM2 = (m2Candidate: string) => {
-  if (m2Candidate && !CELL_BLACKLIST.some(item => m2Candidate.includes(item))) {
+  if (m2Candidate && !CELL_BLACKLIST.some((item) => m2Candidate.includes(item))) {
     let m2 = parseFloat(m2Candidate.replace(/[ ,]/g, ""));
     if (m2Candidate.includes("ha")) m2 = m2 * 10000;
     if (isFinite(m2)) return m2;
@@ -84,9 +91,9 @@ export const getM2 = (m2Candidate: string) => {
  * @param data
  */
 export const calculatePriceM2 = (data: Scraped[]): Measurement[] => {
-  return data.map(item => ({
+  return data.map((item) => ({
     ...item,
-    priceM2: item.price / item.m2
+    priceM2: item.price / item.m2,
   }));
 };
 
@@ -140,7 +147,7 @@ const getPropertyStats = (data: Measurement[], key: keyof Measurement = "price")
   median: getMedian(data, key),
   mean: getMean(data, key),
   min: getMin(data, key),
-  max: getMax(data, key)
+  max: getMax(data, key),
 });
 
 /**
@@ -157,7 +164,7 @@ const getStats = (data: Measurement[]): Stats => {
     median: medianPriceM2,
     mean: meanPriceM2,
     min: minPriceM2,
-    max: maxPriceM2
+    max: maxPriceM2,
   } = getPropertyStats(data, "priceM2");
 
   return {
@@ -173,7 +180,7 @@ const getStats = (data: Measurement[]): Stats => {
     medianPriceM2,
     meanPriceM2,
     minPriceM2,
-    maxPriceM2
+    maxPriceM2,
   };
 };
 
@@ -184,9 +191,10 @@ const getStats = (data: Measurement[]): Stats => {
  * @param type
  * @param location
  */
-export const parseData = (data: Scraped[], type: string, location: string): Entry => ({
-  ...getStats(calculatePriceM2(data)),
+export const parseData = (data: Parse, type: string, location: string): Entry => ({
+  ...getStats(calculatePriceM2(data.scraped)),
   type,
   location,
-  created: new Date()
+  subLocation: data.name,
+  created: new Date(),
 });
