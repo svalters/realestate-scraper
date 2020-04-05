@@ -165,7 +165,7 @@ export const getCandidates = (): Promise<Candidate>[] =>
 /**
  * scrape all by type, region and sub region
  *
- * @param candidatesgetSellUrl(link.url)
+ * @param candidates
  */
 export const scrape = (candidates: Candidate[]): Promise<Entry[]>[] =>
   candidates.map(async ({ region, type, links }) => {
