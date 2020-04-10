@@ -12,9 +12,9 @@ export const LOOKUP_REAL_ESTATE = [
 
 export const LOOKUP_REAL_ESTATE_REGIONS = [
   { url: "riga/", name: "riga" },
+  { url: "riga-region/", name: "riga_region" },
   { url: "jurmala/", name: "jurmala" },
-  { url: "valmiera-and-reg/", name: "valmiera" },
-  { url: "riga-region/", name: "riga_region" }
+  { url: "valmiera-and-reg/", name: "valmiera_region" },
 ];
 
 export const SELECTORS = {

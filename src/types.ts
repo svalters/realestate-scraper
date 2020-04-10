@@ -14,6 +14,11 @@ export interface Scraped {
   m2: number;
 }
 
+export interface Parse {
+  name: string;
+  scraped: Scraped[];
+}
+
 export interface Measurement extends Scraped {
   priceM2: number;
 }
@@ -44,7 +49,8 @@ export interface Stats extends Price, M2, PriceM2 {
 }
 
 export interface Entry extends Stats {
-  type: String;
-  location: String;
+  type: string;
+  location: string;
+  subLocation: string;
   created: Date;
 }

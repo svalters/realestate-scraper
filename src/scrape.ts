@@ -1,16 +1,25 @@
 import cheerio from "cheerio";
-import { camelCase, flatten } from "lodash";
+import { camelCase } from "lodash";
 import axiosRetry from "axios-retry";
 import axios from "axios";
 import Model from "./model";
-import { SELECTORS } from "./constants";
-import { parseData, getEntryLinks, getSellUrl, getSiteUrl, logger, getM2, getPrice } from "./utils";
+import { SELECTORS, SITE_URL } from "./constants";
+import {
+  parseData,
+  getEntryLinks,
+  getSellUrl,
+  getSiteUrl,
+  logger,
+  getM2,
+  getPrice,
+  normalizeText,
+} from "./utils";
 import { Link, Candidate, Scraped, Entry } from "./types";
 
 // Bind axios retry to axios
 axiosRetry(axios, {
   retries: 20,
-  retryDelay: retryCount => retryCount * 10000
+  retryDelay: (retryCount) => retryCount * 10000,
 });
 
 /**
@@ -19,7 +28,7 @@ axiosRetry(axios, {
  * @param url
  */
 const loadCheerioStatic = async (url: string): Promise<CheerioStatic> =>
-  axios.get(url).then(response => cheerio.load(response.data));
+  axios.get(url).then((response) => cheerio.load(response.data));
 
 /**
  * Return next page url
@@ -45,10 +54,10 @@ const getOptionLinks = (page: CheerioStatic): Link[] => {
       const linkStatic = page(type);
       return {
         url: linkStatic.attr("href") || "",
-        name: linkStatic.text()
+        name: linkStatic.text(),
       };
     })
-    .filter(({ url }) => url && !url.includes("/all/"));
+    .filter(({ url }) => url && !url.includes("/all/") && !url.includes("/other/"));
 };
 
 /**
@@ -77,7 +86,7 @@ const scrapePage = (page: CheerioStatic, headers: string[]): Scraped[] => {
     const cells = row.childNodes;
     let rowData = {
       price: 0,
-      m2: 0
+      m2: 0,
     };
 
     cells.forEach((cell, i: number) => {
@@ -124,7 +133,9 @@ const scrapePages = async (
   // Parse next page if exists
   const next = nextPageUrl(page);
   if (next) {
-    return loadCheerioStatic(next).then(page => scrapePages(page, headers, data.concat(pageData)));
+    return loadCheerioStatic(next).then((page) =>
+      scrapePages(page, headers, data.concat(pageData))
+    );
   }
   return data.concat(pageData);
 };
@@ -135,11 +146,19 @@ const scrapePages = async (
 export const getCandidates = (): Promise<Candidate>[] =>
   getEntryLinks().map(async ({ region, type }) =>
     loadCheerioStatic(region.url)
-      .then(cheerioStatic => getOptionLinks(cheerioStatic))
-      .then(subRegions => ({
+      .then((cheerioStatic) => getOptionLinks(cheerioStatic))
+      .then((subRegions) => ({
         region,
         type,
-        links: subRegions.length !== 0 ? subRegions : [region]
+        links:
+          subRegions.length !== 0
+            ? subRegions
+            : [
+                {
+                  ...region,
+                  url: region.url.replace(SITE_URL, ""),
+                },
+              ],
       }))
   );
 
@@ -148,23 +167,31 @@ export const getCandidates = (): Promise<Candidate>[] =>
  *
  * @param candidates
  */
-export const scrape = (candidates: Candidate[]): Promise<Entry>[] =>
+export const scrape = (candidates: Candidate[]): Promise<Entry[]>[] =>
   candidates.map(async ({ region, type, links }) => {
     return Promise.all(
-      links.map(async link => {
+      links.map(async (link) => {
         logger(getSellUrl(link.url), "LINK");
-        return loadCheerioStatic(getSellUrl(link.url)).then(page => {
+        return loadCheerioStatic(getSellUrl(link.url)).then((page) => {
           // Get page headers list
           const headers = getListHeaders(page);
           if (headers.length === 0) {
-            return [];
+            return {
+              name: link.name,
+              scraped: [],
+            };
           }
 
           // Return scraped data
-          return scrapePages(page, headers);
+          return scrapePages(page, headers).then((scraped) => ({
+            name: normalizeText(link.name),
+            scraped,
+          }));
         });
       })
-    ).then((data: Scraped[][]) => parseData(flatten(data), type.name, region.name));
+    )
+      .then((data) => data.filter((item) => item.scraped.length !== 0))
+      .then((data) => data.map((entry) => parseData(entry, type.name, region.name)));
   });
 
 /**
@@ -173,4 +200,4 @@ export const scrape = (candidates: Candidate[]): Promise<Entry>[] =>
  * @param entries
  */
 export const insertEntries = (entries: Entry[]): Promise<void>[] =>
-  entries.map(data => new Model(data).save().then(document => logger(document.toString())));
+  entries.map((data) => new Model(data).save().then((document) => logger(document.toString())));
