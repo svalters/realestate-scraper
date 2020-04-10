@@ -12,16 +12,16 @@
     "axios-retry": "^3.1.2",
     "cheerio": "^1.0.0-rc.3",
     "lodash": "^4.17.15",
-    "mongoose": "^5.7.12"
+    "mongoose": "^5.9.7"
   },
   "devDependencies": {
-    "@types/cheerio": "^0.22.15",
-    "@types/jest": "^24.0.25",
+    "@types/cheerio": "^0.22.17",
+    "@types/jest": "^24.9.1",
     "@types/lodash": "^4.14.149",
-    "@types/mongoose": "^5.5.32",
-    "@types/node": "^12.12.11",
+    "@types/mongoose": "^5.7.10",
+    "@types/node": "^12.12.35",
     "jest": "^24.9.0",
-    "ts-jest": "^24.2.0",
-    "typescript": "^3.7.2"
+    "ts-jest": "^24.3.0",
+    "typescript": "^3.8.3"
   }
 }
