@@ -52,5 +52,4 @@ export interface Entry extends Stats {
   type: string;
   location: string;
   subLocation: string;
-  created: Date;
 }

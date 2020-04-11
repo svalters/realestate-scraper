@@ -196,5 +196,4 @@ export const parseData = (data: Parse, type: string, location: string): Entry =>
   type,
   location,
   subLocation: data.name,
-  created: new Date(),
 });
