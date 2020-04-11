@@ -24,7 +24,7 @@ const entry = new mongoose.Schema(
   },
   {
     timestamps: {
-      currentTime: () => new Date().setMinutes(0, 0, 0),
+      currentTime: () => new Date().setSeconds(0, 0),
       updatedAt: false,
     } as any,
   }
