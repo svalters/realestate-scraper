@@ -44,7 +44,7 @@ export const normalizeText = (text: string) => snakeCase(deburr(text));
 /**
  * Returns link lists for types and regions
  */
-export const getEntryLinks = (): Omit<Candidate, "links">[] => {
+export const getRootLinks = () => {
   const links: Omit<Candidate, "links">[] = [];
   LOOKUP_REAL_ESTATE.forEach((type) => {
     LOOKUP_REAL_ESTATE_REGIONS.forEach(({ url, name }) => {
@@ -67,7 +67,7 @@ export const getEntryLinks = (): Omit<Candidate, "links">[] => {
  */
 export const getPrice = (priceCandidate: string) => {
   if (priceCandidate && !PRICE_BLACKLIST.some((item) => priceCandidate.includes(item))) {
-    const price = parseFloat(priceCandidate.replace(/[ ,]/g, ""));
+    const price = parseFloat(priceCandidate.replace(/,/g, ""));
     if (isFinite(price)) return price;
   }
   return 0;
@@ -80,7 +80,7 @@ export const getPrice = (priceCandidate: string) => {
  */
 export const getM2 = (m2Candidate: string) => {
   if (m2Candidate && !CELL_BLACKLIST.some((item) => m2Candidate.includes(item))) {
-    let m2 = parseFloat(m2Candidate.replace(/[ ,]/g, ""));
+    let m2 = parseFloat(m2Candidate.replace(/,/g, ""));
     if (m2Candidate.includes("ha")) m2 = m2 * 10000;
     if (isFinite(m2)) return m2;
   }

@@ -2,19 +2,11 @@ import cheerio from "cheerio";
 import { camelCase } from "lodash";
 import axiosRetry from "axios-retry";
 import axios from "axios";
-import Model from "./model";
+import { map, filter, flatMap } from "rxjs/operators";
+import { from } from "rxjs";
 import { SELECTORS, SITE_URL } from "./constants";
-import {
-  parseData,
-  getEntryLinks,
-  getSellUrl,
-  getSiteUrl,
-  logger,
-  getM2,
-  getPrice,
-  normalizeText,
-} from "./utils";
-import { Link, Candidate, Scraped, Entry } from "./types";
+import { getSellUrl, getSiteUrl, getM2, getPrice, normalizeText } from "./utils";
+import { Link, Candidate, Scraped } from "./types";
 
 // Bind axios retry to axios
 axiosRetry(axios, {
@@ -27,7 +19,7 @@ axiosRetry(axios, {
  *
  * @param url
  */
-const loadCheerioStatic = async (url: string): Promise<CheerioStatic> =>
+const loadCheerio = (url: string): Promise<CheerioStatic> =>
   axios.get(url).then((response) => cheerio.load(response.data));
 
 /**
@@ -35,11 +27,11 @@ const loadCheerioStatic = async (url: string): Promise<CheerioStatic> =>
  *
  * @param page
  */
-const nextPageUrl = (page: CheerioStatic): string => {
+const nextPageUrl = (page: CheerioStatic): string | null => {
   const nextEl = page(SELECTORS.next);
   const href = (nextEl && nextEl.attr("href")) || "";
   if (href.includes(".html")) return getSiteUrl(href);
-  return "";
+  return null;
 };
 
 /**
@@ -77,9 +69,7 @@ const getListHeaders = (page: CheerioStatic): string[] => {
  * @param headers
  */
 const scrapePage = (page: CheerioStatic, headers: string[]): Scraped[] => {
-  const rowNodeList = page(
-    `${SELECTORS.realEstateListPage.table} tr:not(:first-child):not(:last-child)`
-  );
+  const rowNodeList = page(`${SELECTORS.realEstateListPage.table} tr:not(:first-child)`);
 
   const scrapedData: Scraped[] = [];
   rowNodeList.each((_, row) => {
@@ -117,7 +107,30 @@ const scrapePage = (page: CheerioStatic, headers: string[]): Scraped[] => {
 };
 
 /**
- * Scrape all paginated pages
+ * Return scraping link list
+ *
+ * @param candidate
+ */
+export const getEntryLinks = ({ region, type }: Omit<Candidate, "links">) =>
+  from(loadCheerio(region.url)).pipe(
+    map((page) => getOptionLinks(page)),
+    map((subRegions) => ({
+      region,
+      type,
+      links:
+        subRegions.length !== 0
+          ? subRegions
+          : [
+              {
+                ...region,
+                url: region.url.replace(SITE_URL, ""),
+              },
+            ],
+    }))
+  );
+
+/**
+ * Scrape paginated pages recursively
  *
  * @param page
  * @param headers
@@ -133,71 +146,24 @@ const scrapePages = async (
   // Parse next page if exists
   const next = nextPageUrl(page);
   if (next) {
-    return loadCheerioStatic(next).then((page) =>
-      scrapePages(page, headers, data.concat(pageData))
-    );
+    return loadCheerio(next).then((page) => scrapePages(page, headers, data.concat(pageData)));
   }
   return data.concat(pageData);
 };
 
 /**
- * Return scraping link list
- */
-export const getCandidates = (): Promise<Candidate>[] =>
-  getEntryLinks().map(async ({ region, type }) =>
-    loadCheerioStatic(region.url)
-      .then((cheerioStatic) => getOptionLinks(cheerioStatic))
-      .then((subRegions) => ({
-        region,
-        type,
-        links:
-          subRegions.length !== 0
-            ? subRegions
-            : [
-                {
-                  ...region,
-                  url: region.url.replace(SITE_URL, ""),
-                },
-              ],
-      }))
-  );
-
-/**
- * scrape all by type, region and sub region
+ * Start page scraper
  *
- * @param candidates
+ * @param link
  */
-export const scrape = (candidates: Candidate[]): Promise<Entry[]>[] =>
-  candidates.map(async ({ region, type, links }) => {
-    return Promise.all(
-      links.map(async (link) => {
-        logger(getSellUrl(link.url), "LINK");
-        return loadCheerioStatic(getSellUrl(link.url)).then((page) => {
-          // Get page headers list
-          const headers = getListHeaders(page);
-          if (headers.length === 0) {
-            return {
-              name: link.name,
-              scraped: [],
-            };
-          }
-
-          // Return scraped data
-          return scrapePages(page, headers).then((scraped) => ({
-            name: normalizeText(link.name),
-            scraped,
-          }));
-        });
-      })
+export const scrape = ({ url, name }: Link) =>
+  from(loadCheerio(getSellUrl(url))).pipe(
+    map((page) => ({ page, headers: getListHeaders(page), name: normalizeText(name) })),
+    filter(({ headers }) => headers.length !== 0),
+    flatMap(({ page, headers }) =>
+      from(scrapePages(page, headers)).pipe(
+        filter((scraped) => scraped.length !== 0),
+        map((scraped) => ({ name, scraped }))
+      )
     )
-      .then((data) => data.filter((item) => item.scraped.length !== 0))
-      .then((data) => data.map((entry) => parseData(entry, type.name, region.name)));
-  });
-
-/**
- * Insert scraped data in database
- *
- * @param entries
- */
-export const insertEntries = (entries: Entry[]): Promise<void>[] =>
-  entries.map((data) => new Model(data).save().then((document) => logger(document.toString())));
+  );

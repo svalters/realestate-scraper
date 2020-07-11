@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { SchemaTimestampsConfig } from "mongoose";
 
 const entry = new mongoose.Schema(
   {
@@ -24,9 +24,9 @@ const entry = new mongoose.Schema(
   },
   {
     timestamps: {
-      currentTime: () => new Date().setSeconds(0, 0),
+      currentTime: () => (new Date()).setSeconds(0, 0),
       updatedAt: false,
-    } as any,
+    } as SchemaTimestampsConfig,
   }
 );
 

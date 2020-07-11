@@ -5,6 +5,7 @@
   "scripts": {
     "build": "tsc",
     "scrape": "node dist/index.js",
+    "dev": "NODE_ENV=dev ts-node-dev --respawn --transpileOnly ./src/index.ts",
     "test": "jest"
   },
   "dependencies": {
@@ -12,7 +13,8 @@
     "axios-retry": "^3.1.2",
     "cheerio": "^1.0.0-rc.3",
     "lodash": "^4.17.15",
-    "mongoose": "^5.9.7"
+    "mongoose": "^5.9.7",
+    "rxjs": "^6.5.5"
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.17",
@@ -22,6 +24,7 @@
     "@types/node": "^12.12.35",
     "jest": "^25.3.0",
     "ts-jest": "^24.3.0",
+    "ts-node-dev": "^1.0.0-pre.49",
     "typescript": "^3.8.3"
   }
 }
