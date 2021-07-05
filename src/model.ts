@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { SchemaTimestampsConfig } from "mongoose"
 
 const entry = new mongoose.Schema(
   {
@@ -26,8 +26,8 @@ const entry = new mongoose.Schema(
     timestamps: {
       currentTime: () => new Date().setSeconds(0, 0),
       updatedAt: false,
-    } as any,
+    } as SchemaTimestampsConfig,
   }
-);
+)
 
-export default mongoose.model("Entry", entry);
+export default mongoose.model("Entry", entry)
